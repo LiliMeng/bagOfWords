@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <ctime>
+#include <algorithm>
 
 #include "opencv2/core/core.hpp"
 #include "opencv2/features2d/features2d.hpp"
@@ -87,12 +88,6 @@ int main()
 
         assert(labels.size() == all_descriptors.rows);
 
-
-        /*
-        cv_vocabulary_tree::buildTree(const cv::Mat & data,
-                                   const vector<unsigned int> & labels,
-                                   const cv_vocabulary_tree_parameter & para)
-         */
          cv_vocabulary_tree vocTree;
          cv_vocabulary_tree_parameter para;
          para.nLabel_ = imgNum;
@@ -129,6 +124,14 @@ int main()
          ofstream fout1("/home/lili/workspace/SLAM/vocabTree/distribution.txt");
 
          printDistribution(fout1,  distribution);
+
+         vector<distributionData> sortedDistribution;
+
+         vocTree.sortDistribution(distribution, sortedDistribution, 5);
+
+
+
+
 
 
         return 0;

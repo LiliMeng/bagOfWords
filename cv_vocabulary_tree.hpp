@@ -4,6 +4,9 @@
 // vocabulary tree using kmeans cluster
 
 #include <vector>
+#include <iostream>
+#include <iomanip>
+
 #include "opencv2/core/core.hpp"
 #include "opencv2/core/core_c.h"
 #include "opencv2/imgproc/imgproc.hpp"
@@ -25,6 +28,18 @@ struct cv_vocabulary_tree_parameter
     }
 };
 
+struct distributionData {
+    size_t index;
+    float singleHistogram;
+};
+
+struct by_number {
+    bool operator()(distributionData const &left, distributionData const &right) {
+        return left.singleHistogram < right.singleHistogram;
+    }
+};
+
+
 class cv_vocabulary_tree_node;
 class cv_vocabulary_tree
 {
@@ -45,6 +60,9 @@ public:
     // query the distribution of multiple feature, each vector in a row
     void query(const cv::Mat & features, vector<float> & distribution) const;
 
+    void sortDistribution(vector<float> distribution,  vector<distributionData> & sortedDistribution, int num);
+
+
 private:
     void buildTree(cv_vocabulary_tree_node * node,
                    const cv::Mat & data,
@@ -54,8 +72,6 @@ private:
     void queryOneFeature(const cv_vocabulary_tree_node * node,
                          const cv::Mat & feature,
                          vector<float> & distribution) const;
-
-
 
 };
 

@@ -41,10 +41,14 @@ void cv_vocabulary_tree::buildTree(cv_vocabulary_tree_node * node,
     if (depth > para.max_depth_ || data.rows <= para.min_leaf_node_) {
         node->isLeaf_ = true;
         node->histgram_ = vector<float>(para.nLabel_, 0);
-        for (int i = 0; i<labels.size(); i++) {
+
+        for (int i = 0; i<labels.size(); i++)
+        {
             node->histgram_[labels[i]] += 1.0;
         }
-        for (int i = 0; i<node->histgram_.size(); i++) {
+
+        for (int i = 0; i<node->histgram_.size(); i++)
+        {
             node->histgram_[i] /= labels.size();
         }
         //   printf("leaf node size %lu\n", labels.size());
@@ -52,15 +56,16 @@ void cv_vocabulary_tree::buildTree(cv_vocabulary_tree_node * node,
     }
 
     // run k mean
-    cv::Mat partition; // int
+    cv::Mat clusters; // int
     cv::Mat cluster_centers; // float?
-    cv::kmeans(data, para.k_, partition, cv::TermCriteria( cv::TermCriteria::EPS+ cv::TermCriteria::COUNT, 10, 1.0),
-               3, cv::KMEANS_RANDOM_CENTERS, cluster_centers);
+    cv::kmeans(data, para.k_, clusters, cv::TermCriteria( cv::TermCriteria::EPS+ cv::TermCriteria::COUNT, 10, 1.0),
+               3, cv::KMEANS_RANDOM_CENTERS, cluster_centers);  //KMEANS_PP_CENTERS keams++   //KMEANS_RANDOM_CENTERS
 
     const unsigned int K = (unsigned int) cluster_centers.rows;
     //printf("acutal k is %d\n", K);
 
-    for (int i = 0; i<K; i++) {
+    for (int i = 0; i<K; i++)
+    {
         cv_vocabulary_tree_node *subNode = new cv_vocabulary_tree_node();
         assert(subNode);
         subNode->depth_ = depth + 1;
@@ -71,8 +76,10 @@ void cv_vocabulary_tree::buildTree(cv_vocabulary_tree_node * node,
     // split data
     vector<cv::Mat> splitted_datas(K);
     vector<vector<unsigned int> > splitted_labels(K);
-    for (int i = 0; i<partition.rows; i++) {
-        int idx = partition.at<int>(i); // kmeans index
+
+    for (int i = 0; i<clusters.rows; i++)
+    {
+        int idx = clusters.at<int>(i); // kmeans index
         assert(idx < K);
         assert(idx >= 0);
 
@@ -81,7 +88,8 @@ void cv_vocabulary_tree::buildTree(cv_vocabulary_tree_node * node,
     }
 
     // subdivide
-    for (int i = 0; i<node->subnodes_.size() && i<splitted_datas.size() && i<splitted_labels.size(); i++) {
+    for (int i = 0; i<node->subnodes_.size() && i<splitted_datas.size() && i<splitted_labels.size(); i++)
+    {
         this->buildTree(node->subnodes_[i], splitted_datas[i], splitted_labels[i], para, depth + 1);
     }
 }
@@ -95,28 +103,35 @@ void cv_vocabulary_tree::query(const cv::Mat & features, vector<float> & distrib
     assert(features.type() == CV_32F);
 
     distribution = vector<float>(nLabel_, 0.0f);
-    for (int i = 0; i<features.rows; i++) {
+
+    for(int i=0; i<features.rows; i++)
+    {
         vector<float> dist;
+
         this->queryOneFeature(root_, features.row(i), dist);
 
-        assert(dist.size() == distribution.size());
-        for (int j = 0; j<dist.size(); j++) {
-            distribution[j] += dist[j];
-        }
-    }
+        assert(dist.size()==distribution.size());
 
+        for(int j=0; j<dist.size(); j++)
+        {
+            distribution[j]+=dist[j];      //要在这个地方加weighting 并不是每个distribution有相同的weight的　
+        }
+
+    }
     // average
     for (int i = 0; i<distribution.size(); i++) {
         distribution[i] /= features.rows;
     }
 }
+
 void cv_vocabulary_tree::queryOneFeature(const cv_vocabulary_tree_node * node,
                                          const cv::Mat & feature,
                                          vector<float> & distribution) const
 {
     assert(feature.rows == 1);
 
-    if (node->isLeaf_) {
+    if(node->isLeaf_)
+    {
         distribution = node->histgram_;
         return;
     }
@@ -124,23 +139,44 @@ void cv_vocabulary_tree::queryOneFeature(const cv_vocabulary_tree_node * node,
     // compare with every cluster center
     double min_dis = INT_MAX;
     int min_index = 0;
-    for (int i =0 ; i<node->subnodes_.size(); i++) {
-        cv::Mat dif = node->subnodes_[i]->cluster_center_ - feature;  // vector (one row matrix) distance
-        double dis = cv::norm(dif);
-        if (dis < min_dis) {
+    for (int i=0; i<node->subnodes_.size(); i++)
+    {
+        cv::Mat dif = node->subnodes_[i]->cluster_center_ - feature; // vector (one row matrix) distance.  用的是Eulidean distance　肿么变成Mahalanobis distance? 这个covariance肿么办？
+        //At the retrieval stage, it's ranked by the normalized scalar product between the query vector  and all the document vectors vd in the database.
+
+        double dis = cv::norm(dif); //L2 norm  dis is the score
+
+        if(dis<min_dis)
+        {
             min_dis = dis;
             min_index = i;
         }
+
     }
     assert(min_index < node->subnodes_.size());
 
     this->queryOneFeature(node->subnodes_[min_index], feature, distribution);
+
 }
 
+void cv_vocabulary_tree::sortDistribution(vector<float> distribution,  vector<distributionData> & sortedDistribution, int num)
+{
+         sortedDistribution.resize(distribution.size());
 
+        for(int i=0; i<distribution.size(); i++)
+        {
+            sortedDistribution[i].index=i;
+            sortedDistribution[i].singleHistogram=distribution[i];
+        }
 
+        sort(sortedDistribution.begin(),sortedDistribution.end(),by_number());
 
+        for(int i=0; i<num;i++)
+        {
+            cout<<sortedDistribution[i].index<<" "<<std::setprecision(3)<<sortedDistribution[i].singleHistogram<<endl;
+        }
 
+ }
 
 
 

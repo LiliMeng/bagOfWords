@@ -1,6 +1,7 @@
 #include "cv_vocabulary_tree.hpp"
 #include <algorithm>
-
+#include <math.h>
+#include <iomanip>
 
 cv_vocabulary_tree::cv_vocabulary_tree()
 {
@@ -20,6 +21,8 @@ void cv_vocabulary_tree::buildTree(const cv::Mat & data,
     assert(para.k_ >= 2);
     assert(data.rows >= para.k_);
     assert(data.rows == labels.size());
+
+    cout<<"labels.size() is: "<<labels.size()<<endl;
 
     root_ = new cv_vocabulary_tree_node();
     root_->depth_ = 0;
@@ -42,6 +45,7 @@ void cv_vocabulary_tree::buildTree(cv_vocabulary_tree_node * node,
         node->isLeaf_ = true;
         node->histgram_ = vector<float>(para.nLabel_, 0);
 
+       // cout<<"labels.size() is: "<<labels.size()<<endl;
         for (int i = 0; i<labels.size(); i++)
         {
             node->histgram_[labels[i]] += 1.0;
@@ -51,7 +55,7 @@ void cv_vocabulary_tree::buildTree(cv_vocabulary_tree_node * node,
         {
             node->histgram_[i] /= labels.size();
         }
-        //   printf("leaf node size %lu\n", labels.size());
+        //printf("leaf node size %lu\n", labels.size());
         return;
     }
 
@@ -62,7 +66,7 @@ void cv_vocabulary_tree::buildTree(cv_vocabulary_tree_node * node,
                3, cv::KMEANS_RANDOM_CENTERS, cluster_centers);  //KMEANS_PP_CENTERS keams++   //KMEANS_RANDOM_CENTERS
 
     const unsigned int K = (unsigned int) cluster_centers.rows;
-    //printf("acutal k is %d\n", K);
+   // printf("acutal k is %d\n", K);
 
     for (int i = 0; i<K; i++)
     {
@@ -114,13 +118,18 @@ void cv_vocabulary_tree::query(const cv::Mat & features, vector<float> & distrib
 
         for(int j=0; j<dist.size(); j++)
         {
-            distribution[j]+=dist[j];      //要在这个地方加weighting 并不是每个distribution有相同的weight的　
+            distribution[j]+= dist[j];      //要在这个地方加weighting 并不是每个distribution有相同的weight的　
         }
 
     }
+
+    double N=distribution.size();
+    double Ni=features.rows;
+    double weighting=log(N/Ni);
     // average
     for (int i = 0; i<distribution.size(); i++) {
-        distribution[i] /= features.rows;
+      distribution[i] = weighting * distribution[i]/ features.rows;
+        //distribution[i] = distribution[i]/ features.rows;
     }
 }
 
@@ -144,7 +153,7 @@ void cv_vocabulary_tree::queryOneFeature(const cv_vocabulary_tree_node * node,
         cv::Mat dif = node->subnodes_[i]->cluster_center_ - feature; // vector (one row matrix) distance.  用的是Eulidean distance　肿么变成Mahalanobis distance? 这个covariance肿么办？
         //At the retrieval stage, it's ranked by the normalized scalar product between the query vector  and all the document vectors vd in the database.
 
-        double dis = cv::norm(dif); //L2 norm  dis is the score
+        double dis = cv::norm(dif); //L2 norm is the similarity score. sorting documents according to their ascending L2 distance to the query vector produces the same ranking as sorting using the descending angle score
 
         if(dis<min_dis)
         {
@@ -171,9 +180,10 @@ void cv_vocabulary_tree::sortDistribution(vector<float> distribution,  vector<di
 
         sort(sortedDistribution.begin(),sortedDistribution.end(),by_number());
 
+        cout.precision(10);
         for(int i=0; i<num;i++)
         {
-            cout<<sortedDistribution[i].index<<" "<<std::setprecision(3)<<sortedDistribution[i].singleHistogram<<endl;
+            cout<<sortedDistribution[i].index<<" "<<sortedDistribution[i].singleHistogram<<endl;
         }
 
  }

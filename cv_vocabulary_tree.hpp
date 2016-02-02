@@ -35,7 +35,7 @@ struct distributionData {
 
 struct by_number {
     bool operator()(distributionData const &left, distributionData const &right) {
-        return left.singleHistogram < right.singleHistogram;
+        return left.singleHistogram > right.singleHistogram;
     }
 };
 
@@ -50,6 +50,8 @@ class cv_vocabulary_tree
 public:
     cv_vocabulary_tree();
     ~cv_vocabulary_tree();
+
+public:
 
     // data CV_32F
     // each row is one feature
@@ -84,6 +86,7 @@ public:
     bool isLeaf_;
 
     vector<float> histgram_;  // only leaf has
+    float score;
 
     cv_vocabulary_tree_node()
     {

@@ -11,3 +11,7 @@ http://www-inst.eecs.berkeley.edu/~cs294-6/fa06/papers/nister_stewenius_cvpr2006
 Kmeans clustering from opencv is used 
 
 http://docs.opencv.org/2.4/modules/core/doc/clustering.html
+
+
+Efficient Visual Search of Videos Cast as Text Retrieval
+By Josef Sivic and Andrew Zisserman

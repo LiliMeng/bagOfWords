@@ -19,8 +19,7 @@ cv_vocabulary_tree::~cv_vocabulary_tree()
 
 void cv_vocabulary_tree::buildTree(const cv::Mat & data,
                                    const vector<unsigned int> & labels,
-                                   const cv_vocabulary_tree_parameter & para,
-                                   vector<int> & Ni)
+                                   const cv_vocabulary_tree_parameter & para)
 {
     assert(data.type() == CV_32F);
     assert(para.k_ >= 2);
@@ -38,33 +37,30 @@ void cv_vocabulary_tree::buildTree(const cv::Mat & data,
     this->nLabel_=para.nLabel_;
 
 
-    this->buildTree(root_, data, labels, para, 0, Ni);
+    this->buildTree(root_, data, labels, para, 0);
 }
 
 
 void cv_vocabulary_tree::buildTree(cv_vocabulary_tree_node * node,
                                    const cv::Mat & data,
                                    const vector<unsigned int> &labels,
-                                   const cv_vocabulary_tree_parameter & para, int depth,
-                                   vector<int> &Ni)
+                                   const cv_vocabulary_tree_parameter & para, int depth)
 {
     assert(node);
     assert(data.rows == labels.size());
-    set<int> numOfdifferentLabels;
+    set<int> numOfdifferentLabels;  //the number of images in the database with at least one descriptor vector path through node i
 
     if(depth > para.max_depth_ || data.rows <= para.min_leaf_node_)
     {
         node->isLeaf_ = true;
         node->histgram_ = vector<float>(para.nLabel_, 0);
 
-        //cout<<"node->histgram_.size() is: "<<node->histgram_.size()<<endl;
+        cout<<"node->histgram_.size() is: "<<node->histgram_.size()<<endl;
        cout<<"labels.size() is: "<<labels.size()<<endl;
        for(int i=0; i<labels.size(); i++)
         {
             numOfdifferentLabels.insert(labels[i]);
         }
-
-        Ni.push_back((int)numOfdifferentLabels.size());
 
         for(int i=0; i<labels.size(); i++)
         {
@@ -74,12 +70,18 @@ void cv_vocabulary_tree::buildTree(cv_vocabulary_tree_node * node,
             //cout<<"node->histgram_[labels[i]] is "<<node->histgram_[labels[i]]<<endl;
         }
 
+       int N=node->histgram_.size();
+
+        double nodeWeight=log((double)N/numOfdifferentLabels.size());
 
         for(int i=0; i<node->histgram_.size(); i++)
         {
             node->histgram_[i]/=labels.size();
             //cout<<"node->histgram_[i] is "<<node->histgram_[i]<<endl;
         }
+
+        ///weight are added here!!! weight加在这里　
+        std::transform(node->histgram_.begin(), node->histgram_.end(), node->histgram_.begin(),  std::bind1st(std::multiplies<double>(),nodeWeight));
 
         printf("leaf node size %lu\n", labels.size());
         fout2<<labels.size()<<endl;
@@ -124,12 +126,12 @@ void cv_vocabulary_tree::buildTree(cv_vocabulary_tree_node * node,
     // subdivide
     for(int i=0; i<node->subnodes_.size() && i<splitted_datas.size() && i<splitted_labels.size(); i++)
     {
-        this->buildTree(node->subnodes_[i], splitted_datas[i], splitted_labels[i], para, depth + 1, Ni);
+        this->buildTree(node->subnodes_[i], splitted_datas[i], splitted_labels[i], para, depth + 1);
     }
 }
 
 
-void cv_vocabulary_tree::query(const cv::Mat & features, vector<float> & distribution, vector<int> Ni) const
+void cv_vocabulary_tree::query(const cv::Mat & features, vector<float> & distribution) const
 {
     assert(root_);
     assert(features.cols == dim_);
@@ -137,18 +139,6 @@ void cv_vocabulary_tree::query(const cv::Mat & features, vector<float> & distrib
     assert(features.type() == CV_32F);
 
     distribution = vector<float>(nLabel_, 0.0f);
-
-    int N=distribution.size();
-
-    vector<double> nodeWeights; //the weight for every node, N is the number of images in the database, and Ni is the number of images in the database with at least one descriptor vector path through node i
-
-    for(int i=0; i<Ni.size(); i++)
-    {
-        double nodeWeight=log((double)N/Ni[i]);
-        cout<<"nodeWeight "<<nodeWeight<<endl;
-        nodeWeights.push_back(nodeWeight);
-    }
-
 
     for(int i=0; i<features.rows; i++)
     {
@@ -162,7 +152,7 @@ void cv_vocabulary_tree::query(const cv::Mat & features, vector<float> & distrib
 
         for(int j=0; j<dist.size(); j++)
         {
-            distribution[j]+= dist[j];      //要在这个地方加weighting 并不是每个distribution有相同的weight的　
+            distribution[j]+= dist[j];      　
         }
 
     }

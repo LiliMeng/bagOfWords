@@ -91,17 +91,15 @@ int main()
          cv_vocabulary_tree vocTree;
          cv_vocabulary_tree_parameter para;
          para.nLabel_ = imgNum;
-         vector<int> Ni;  //the number of images in the database with at least one descriptor vector path through node i
 
          clock_t begin1 = clock();
-         vocTree.buildTree(all_descriptors, labels, para, Ni);
+         vocTree.buildTree(all_descriptors, labels, para);
          clock_t end1 = clock();
          double buildTree_time = double(end1 - begin1) / CLOCKS_PER_SEC;
          cout.precision(5);
          cout<<"buildTree time "<<buildTree_time<<endl;
 
         cout.precision(10);
-        cout<<"Ni.size() "<<Ni.size()<<endl;
 
 
 /*        for(int i=0; i<200; i++)
@@ -124,7 +122,7 @@ int main()
          vector<float> distribution;
 
          clock_t begin2 = clock();
-         vocTree.query(queryDescriptors, distribution, Ni);
+         vocTree.query(queryDescriptors, distribution);
          clock_t end2 = clock();
          double query_time = double(end2 - begin2) / CLOCKS_PER_SEC;
          cout.precision(5);
